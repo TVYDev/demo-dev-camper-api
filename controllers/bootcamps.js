@@ -7,7 +7,40 @@ const geocoder = require('../utils/geocoder');
 // @route   GET /api/v1/bootcamps
 // @access  Public
 exports.getBootcamps = asyncHandler(async (req, res, next) => {
-    const bootcamps = await Bootcamp.find();
+    // Copy query params
+    const reqQuery = { ...req.query };
+
+    // Excluded fields
+    const excludedFields = ['select', 'sort'];
+    excludedFields.forEach(param => delete reqQuery[param]);
+
+    // String of query params
+    let queryStr = JSON.stringify(reqQuery);
+
+    queryStr = queryStr.replace(
+        /\b(gt|gte|lt|lte|in)\b/g,
+        (match) => `$${match}`
+    );
+
+    let query = Bootcamp.find(JSON.parse(queryStr));
+
+    // Select fields
+    if (req.query.select) {
+        const select = req.query.select.split(',').join(' ');
+        query = query.select(select);
+    }
+
+    // Sort by
+    if (req.query.sort) {
+        const sortBy = req.query.sort.split(',').join(' ');
+        console.log(sortBy);
+        query = query.sort(sortBy);
+    }
+    else {
+        query = query.sort('-createdAt');
+    }
+
+    const bootcamps = await query;
 
     res.status(200).json({
         success: true,
@@ -65,6 +98,8 @@ exports.updateBootcamp = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({ success: true, data: bootcamp });
 });
+
+
 
 // @desc    Delete single bootcamps
 // @route   DELETE /api/v1/bootcamps/:id
