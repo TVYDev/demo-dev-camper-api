@@ -1,6 +1,7 @@
 const Bootcamp = require('../models/Bootcamp');
 const ErrorResponse = require('../utils/ErrorResponse');
 const asyncHandler = require('../middleware/async');
+const geocoder = require('../utils/geocoder');
 
 // @desc    Get all bootcamps
 // @route   GET /api/v1/bootcamps
@@ -81,4 +82,46 @@ exports.deleteBootcamp = asyncHandler(async (req, res, next) => {
     }
 
     res.status(200).json({ success: true, data: {} });
+});
+
+// @desc    Get bootcamps within a distance
+// @route   GET /api/v1/bootcamps/within-distance/:zipcode/:distance/:unit
+// @access  Public
+exports.getBootcampsWithinDistance = asyncHandler(async (req, res, next) => {
+    const { zipcode, distance, unit } = req.params;
+
+    const loc = await geocoder.geocode({ zipcode });
+    const { longitude: lng, latitude: lat } = loc[0];
+
+    if (!['km', 'mi'].includes(unit)) {
+        return next(
+            new ErrorResponse(
+                `Invalid unit of distance, available only in km or mi`,
+                400
+            )
+        );
+    }
+
+    // Reference: http://www.1728.org/radians.htm
+    // Syntax: To find central angle
+    // arc length = radius * central angle(radians)
+    // We have:
+    // --- radius as earth radius: 3,963.2 miles or 6,378.1 kilometres
+    // --- arc length as distance
+    const radius = unit === 'km' ? 6378.1 : 3963.2;
+    const radian = distance / radius;
+
+    const bootcamps = await Bootcamp.find({
+        location: {
+            $geoWithin: {
+                $centerSphere: [[lng, lat], radian]
+            }
+        }
+    });
+
+    res.status(200).json({
+        success: true,
+        count: bootcamps.length,
+        data: bootcamps
+    });
 });
