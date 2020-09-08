@@ -11,6 +11,7 @@ dotenv.config({ path: './config/config.env' });
 
 // Load route files
 const bootcamps = require('./routes/bootcamps');
+const courses = require('./routes/courses');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use(morgan('tiny'));
 
 // Mount routes
 app.use('/api/v1/bootcamps', bootcamps);
+app.use('/api/v1/courses', courses);
 
 // Add error handler
 app.use(errorHandler);
