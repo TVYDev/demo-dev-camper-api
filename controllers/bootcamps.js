@@ -8,78 +8,7 @@ const geocoder = require('../utils/geocoder');
 // @route   GET /api/v1/bootcamps
 // @access  Public
 exports.getBootcamps = asyncHandler(async (req, res, next) => {
-    // Copy query params
-    const reqQuery = { ...req.query };
-
-    // Excluded fields
-    const excludedFields = ['select', 'sort', 'limit', 'page'];
-    excludedFields.forEach((param) => delete reqQuery[param]);
-
-    // String of query params
-    let queryStr = JSON.stringify(reqQuery);
-
-    queryStr = queryStr.replace(
-        /\b(gt|gte|lt|lte|in)\b/g,
-        (match) => `$${match}`
-    );
-
-    let query = Bootcamp.find(JSON.parse(queryStr));
-
-    // Select fields
-    if (req.query.select) {
-        const select = req.query.select.split(',').join(' ');
-        query = query.select(select);
-    }
-
-    // Sort by
-    if (req.query.sort) {
-        const sortBy = req.query.sort.split(',').join(' ');
-        console.log(sortBy);
-        query = query.sort(sortBy);
-    } else {
-        query = query.sort('-createdAt');
-    }
-
-    // Pagination
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 25;
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-
-    const totalCount = await Bootcamp.countDocuments();
-
-    query = query.skip(startIndex).limit(limit);
-
-    const pagination = {};
-
-    if (endIndex < totalCount) {
-        pagination.next = {
-            page: page + 1,
-            limit
-        };
-    }
-
-    if (startIndex > 0) {
-        pagination.prev = {
-            page: page - 1,
-            limit
-        };
-    }
-
-    // Reverse populate
-    query = query.populate({
-        path: 'courses',
-        select: 'title description'
-    });
-
-    const bootcamps = await query;
-
-    res.status(200).json({
-        success: true,
-        count: bootcamps.length,
-        pagination,
-        data: bootcamps
-    });
+    res.status(200).json(res.advancedResults);
 });
 
 // @desc    Get single bootcamp
