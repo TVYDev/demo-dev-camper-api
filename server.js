@@ -1,6 +1,8 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
+const fileUpload = require('express-fileupload');
+const path = require('path');
 require('colors');
 
 const errorHandler = require('./middleware/error');
@@ -24,12 +26,19 @@ connectDB();
 // Dev logging middleware
 app.use(morgan('tiny'));
 
+// Allow fileupload middleware
+app.use(fileUpload());
+
 // Mount routes
 app.use('/api/v1/bootcamps', bootcamps);
 app.use('/api/v1/courses', courses);
 
 // Add error handler
 app.use(errorHandler);
+
+// Set 'public' directory as static for public access
+console.log(path.join(__dirname, 'public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 5000;
 
