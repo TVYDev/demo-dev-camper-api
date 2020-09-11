@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const ErrorResponse = require('../utils/ErrorResponse');
 const asyncHandler = require('../middleware/async');
 const User = require('../models/User');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Register a user
 // @route   POST /api/v1/auth/register
@@ -40,6 +42,87 @@ exports.login = asyncHandler(async (req, res, next) => {
     sendTokenResponse(user, 200, res);
 });
 
+// @desc    Get currently logged in user
+// @route   GET /api/v1/auth/me
+// @access  Private
+exports.getMe = asyncHandler(async (req, res, next) => {
+    const user = await User.findById(req.user.id);
+
+    res.status(200).json({
+        success: true,
+        data: user
+    });
+});
+
+// @desc    Geneate forgor password token
+// @route   POST /api/v1/auth/forgot-password
+// @access  Public
+exports.forgotPassword = asyncHandler(async (req, res, next) => {
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+        return next(new ErrorResponse('There is no user with this email', 404));
+    }
+
+    // Get reset token
+    const resetToken = user.getResetPasswordToken();
+
+    await user.save({ validateBeforeSave: false });
+
+    // Create reset password url
+    const resetPasswordUrl = `${req.protocol}://${req.get(
+        'host'
+    )}/api/v1/auth/reset-password/${resetToken}`;
+
+    const message = `You are receiving this email because we have got a request for password reset of your account. Please make a PUT request to below url to reset password: \n\n${resetPasswordUrl}`;
+
+    try {
+        await sendEmail({
+            email: user.email,
+            subject: 'Reset Password 🔑',
+            message
+        });
+
+        res.status(200).json({ success: true, data: 'Email is sent' });
+    } catch (error) {
+        console.log(error);
+
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+
+        await user.save({ validateBeforeSave: false });
+
+        next(new ErrorResponse('Email could not be sent'));
+    }
+});
+
+// @desc    Reset password
+// @route   PUT /api/v1/auth/reset-password/:resetToken
+// @access  Public
+exports.resetPassword = asyncHandler(async (req, res, next) => {
+    const hashedResetToken = crypto
+        .createHash('sha256')
+        .update(req.params.resetToken)
+        .digest('hex');
+
+    const user = await User.findOne({
+        resetPasswordToken: hashedResetToken,
+        resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        return next(new ErrorResponse('Invalid token', 400));
+    }
+
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+
+    sendTokenResponse(user, 200, res);
+});
+
 // Get token from model, create cookie and send token response
 const sendTokenResponse = (user, statusCode, res) => {
     const token = user.getSignedJwtToken();
@@ -59,15 +142,3 @@ const sendTokenResponse = (user, statusCode, res) => {
         .cookie('token', token)
         .json({ success: true, token });
 };
-
-// @desc    Get currently logged in user
-// @route   GET /api/v1/auth/me
-// @access  Private
-exports.getMe = asyncHandler(async (req, res, next) => {
-    const user = await User.findById(req.user.id);
-
-    res.status(200).json({
-        success: true,
-        data: user
-    });
-});
