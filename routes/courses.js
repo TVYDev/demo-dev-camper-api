@@ -9,6 +9,7 @@ const {
 
 const Course = require('../models/Course');
 const advancedResults = require('../middleware/advancedResults');
+const { protect, authorize } = require('../middleware/auth');
 
 // Reference for nested routes: https://stackoverflow.com/a/25305272/11934312
 const router = express.Router({ mergeParams: true });
@@ -22,8 +23,12 @@ router
         }),
         getCourses
     )
-    .post(addCourse);
+    .post(protect, authorize('publisher', 'admin'), addCourse);
 
-router.route('/:id').get(getCourse).put(updateCourse).delete(deleteCourse);
+router
+    .route('/:id')
+    .get(getCourse)
+    .put(protect, authorize('publisher', 'admin'), updateCourse)
+    .delete(protect, authorize('publisher', 'admin'), deleteCourse);
 
 module.exports = router;
