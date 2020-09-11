@@ -123,6 +123,44 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     sendTokenResponse(user, 200, res);
 });
 
+// @desc    Update user details
+// @route   PUT /api/v1/auth/update-details
+// @access  Private
+exports.updateDetails = asyncHandler(async (req, res, next) => {
+    const fieldsToBeUpdated = {
+        name: req.body.name,
+        email: req.body.email
+    };
+
+    const user = await User.findByIdAndUpdate(req.user.id, fieldsToBeUpdated, {
+        new: true,
+        runValidators: true
+    });
+
+    res.status(200).json({
+        success: true,
+        data: user
+    });
+});
+
+// @desc    Update password
+// @route   PUT /api/v1/auth/update-password
+// @access  Private
+exports.updatePassword = asyncHandler(async (req, res, next) => {
+    const user = await User.findById(req.user.id).select('+password');
+
+    if (!(await user.compareHashedPassword(req.body.currentPassword))) {
+        return next(new ErrorResponse('Incorrect password', 400));
+    }
+
+    user.password = req.body.newPassword;
+
+    console.log(user);
+    await user.save();
+
+    sendTokenResponse(user, 200, res);
+});
+
 // Get token from model, create cookie and send token response
 const sendTokenResponse = (user, statusCode, res) => {
     const token = user.getSignedJwtToken();
