@@ -4,6 +4,12 @@ const morgan = require('morgan');
 const fileUpload = require('express-fileupload');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const mongoSanitize = require('express-mongo-sanitize');
+const helmet = require('helmet');
+const xss = require('xss-clean');
+const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
+const cors = require('cors');
 require('colors');
 
 const errorHandler = require('./middleware/error');
@@ -24,8 +30,33 @@ const app = express();
 // Body parser
 app.use(express.json());
 
+// Prevent NoSQL injection, MongoDB operator injection
+app.use(mongoSanitize());
+
 // Cookie parser
 app.use(cookieParser());
+
+// Add security headers
+app.use(helmet());
+
+// Prevent XSS attacks
+app.use(xss());
+
+// Rate limit
+app.use(
+    rateLimit({
+        windowMs: 10 * 60 * 1000, // 10 minutes
+        max: 100,
+        message:
+            'You have made too many requests in a period. Please wait and try again later'
+    })
+);
+
+// Prevent HTTP Parameter Polluction Attacks
+app.use(hpp());
+
+// Enable CORS
+app.use(cors());
 
 // Connect to database
 connectDB();
