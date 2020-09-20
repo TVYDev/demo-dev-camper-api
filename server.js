@@ -1,3 +1,4 @@
+const subdomain = require('express-subdomain');
 const express = require('express');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
@@ -73,6 +74,11 @@ app.use('/api/v1/courses', courses);
 app.use('/api/v1/auth', auth);
 app.use('/api/v1/users', users);
 app.use('/api/v1/reviews', reviews);
+
+app.use(subdomain('devcamper', bootcamps));
+app.use(subdomain('devcamper', courses));
+app.use(subdomain('devcamper', auth));
+app.use(subdomain('devcamper', reviews));
 
 // Add error handler
 app.use(errorHandler);
